@@ -1,0 +1,37 @@
+So basically, transofmers need many layers becuase each kayer does one refinement pass. 
+But if two neighboring layers leanr almsot the same ting, then this is wasted depth. MITR tries ot reduce this waste by penalziing redudnacy between adjacent layers. Then they ask: does this improve logical behavior not jsut accraucy?
+They setup five experiments usin DistilBERT, BERT, and RoBERTa. 
+
+We measure accruacy, contradtiction rates (how often the model gives the same answer to both questions) where lower means better. 
+
+For DistilBERT, InfoNCE is best overall, CLUB is usntable and cosine/CKA are stbale but weak. 
+This indicates importance of esitmaor choice
+
+BERT used Cosine and CKA which slighty imprves accurayc, but contradiction gets worse. 
+/RoBERTa improves accurayc and contradiction for MITR-cosine but for CKA, imporves contradiciton but not accruacy. 
+
+Thoughts:
+MI esitmation is hard because we cant really compute exact MI between hi dmeinsional layer activations, so we need an esitmator
+
+This work does it with CLUB and InfoNCE but Cosine and CKA arent estimaros, they are reresentational reducancy proxies, meaning its conceptual. 
+
+Gaps in current experiment:
+1. the experiment measures what happened at the beginning and the end outcomes of accurayc and reducancy. The internal layers inside resid stream arent penalized. We can see he output vectors of adjacent layers look statistically different (satisfying the penalty) while the attention heads inside those layers are still detecting the same patterns. 
+To fix this, we cna train the BERT models with and without MITR, and run a probing classifer on each layer to see if probig accurayc profile changes, which would indicate that MITR is working as claimed. If probiing profiles look the same with and without MITR then layers arent actually doing anything differnt. 
+
+2. Secondly, the exepriments penalize neightboring layer pairs, but what if reduancdy is jsut as wasteful ebtween layer 2 and 6? Literature shows that from CKA measurment, in BERT sized models, middle layers tend to cluster together whether they are ajdacent or not. 
+
+To do the exerpiemnts, i evaluted the three models and trained three versions one being with neighbording layer penalty like the orignal expeirment, the second with a global layer penalty, and the third a baseline. After training I froze the networks and extracted intenral states. Also during training i trianed linear probe on every layer to track where logical formation occurs. We have CKA calcualtion to measure representation diversity. 
+What results we want to see are high accuracy, and for loss, lower is better. 
+If accuracy increases but loss rises towards the end, that means overcondifcne or fititng. 
+0 means never contradict and 1 is contradict. 
+So for baseline BERT accuracy is 0.7 and contradiciton is 0.7 for both adjacent and all whch is BAD. 
+For distilBERT accuracy is 0.7 but contra is 0.5 for both adjacent and all. 
+For RoBERTa accuracy is 0.7 and contra is 0.6 for both adjacent and all. 
+
+So now lets consider CKA, lowe CKA means layers are doing more unique work so in baseline and adjacent tests we sayw 0.2 as the non adjacent mean, but when we considered all the value dropped to 0.1.
+Seocndly for the probels, we are looking for accuracy shifts in layers, which would show that MITR is rewiring how a model solved a problem. But the drops are small, for isntance 64.9% to 63.5% between baseline and MITR variants, suggestig that theres not a shoft casued by MITR. 
+
+The ONLY model with a shift was RoBERTa, which is likely because it is the newest and largest model. In BERT the CKA chnage was 0 value chnage showing MITR penality did nothing. For DistilBERT the change was by 2 points, not itneresting enough. While RoBERTa dropped from 0.2 to 0 showing it reacted to the penality. 
+
+overall, does seperating layer representations improve logic? Based on the data, likely only on highly expressive models like RoBERTa. For smaller models, forcing layers apart is too restrictive. 
